@@ -25,7 +25,7 @@ class Function:
             
     def run_function(self, data):
         disjunct_values = []
-        
+
         if self.funcType == 'DNF':
             for disjunct in self.items:
                 values = []
@@ -94,30 +94,20 @@ class Function:
     # https://ru.wikipedia.org/wiki/%D0%9C%D0%B5%D1%82%D0%BE%D0%B4_%D0%9A%D1%83%D0%B0%D0%B9%D0%BD%D0%B0_%E2%80%94_%D0%9C%D0%B0%D0%BA-%D0%9A%D0%BB%D0%B0%D1%81%D0%BA%D0%B8#%D0%A8%D0%B0%D0%B3_2:_%D1%82%D0%B0%D0%B1%D0%BB%D0%B8%D1%86%D0%B0_%D0%BF%D1%80%D0%BE%D1%81%D1%82%D1%8B%D1%85_%D0%B8%D0%BC%D0%BF%D0%BB%D0%B8%D0%BA%D0%B0%D0%BD%D1%82
         
     def gluing(self):
-        def check_finished_gluing(cheked_minterm, minterms):
-            flag = True
-            for index, bit in enumerate(cheked_minterm):
-                for minterm in minterms:
-                    if minterm[index] != bit: continue
-                    
-                else:
-                    if flag:
-                        return True
-        def combine(minterm1, minterm2):
-            pass
         minterms = []
         for line in self.table:
             values, f = line
             if f: minterms.append(values)
 
         minterms_by_count = {minterm.count(1): [] for minterm in minterms}
-
+    
         for minterm in minterms:
-            count = minterm.count(1)
-            minterms_by_count[count].append(minterm)
+            minterms_by_count[minterm.count(1)].append(minterm)
             
+        print(minterms_by_count)
         # Получение импликантов 1 ого уровня
         combined = []
+        not_combined = []
         keys = list(minterms_by_count)
         combinations = [(keys[i], keys[i + 1]) for i in range(0, len(keys) - 1)]
         
@@ -135,9 +125,12 @@ class Function:
                             if a == b: combined_minterms.append(a)
                             else: combined_minterms.append('-')
                         combined.append(combined_minterms)
+                    else:
+                        not_combined.append(minterm1)
         print(combined)
-        for c in combined:
-            print(c, check_finished_gluing(c, combined))
+        print(minterms)
+            
+            
         # for i in range(len(minterms_by_count)):
         #     for j in range(i + 1, len(minterms_by_count)):
         #         m1, m2 = minterms[i], minterms[j]
@@ -175,10 +168,15 @@ class Function:
 
 
 # func = '!x*y*z + x*y*!z + x*y*z'
-func = '!x*y*!z*!t + x*!y*!z*!t + x*!y*z*!t + x*!y*z*t + x*y*!z*!t + x*y*z*t'
+# func = '!x*y*!z*!t + x*!y*!z*!t + x*!y*z*!t + x*!y*z*t + x*y*!z*!t + x*y*z*t'
+# func =  a b c d  a b c d  a bcd  a b c d  abcd abcd  ab cd.
+func = '!a*!b*!c*!d + !a*b*c* + !a*b*c*d + a*b*!c*d + a*b*c*d + a*b*c*!d + a*b*c*!d + a*!b'
 funcType = 'DNF'
 
 
 manager = Function(func, funcType)
-manager.gluing()
+# manager.gluing()
+print(sorted(list(manager.dictionary)), 'F')
+for line in manager.table:
+    print(line)
 
