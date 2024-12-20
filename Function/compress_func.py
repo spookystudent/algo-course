@@ -38,13 +38,71 @@ class Function:
         self.set_table()
 
 
+    def set_items(self):
+        func = self.func
+        items = []
+        
+        if self.funcType == 'DNF':
+            items = func.replace(" ", "").split("+")
+            items = list(map(lambda d: d.split("*"), items))
+            
+        elif self.funcType == 'KNF':
+            items = func.replace(" ", "").replace("(", "").replace(")", "").split("*")
+            items = list(map(lambda d: d.split("+"), items))
+        self.items = items
+
+
+    def set_table(self):
+        table = []
+
+        for values in itertools.product([0, 1], repeat=self.length):
+            line = (values, self.run_function(values))
+            table.append(line)
+
+        self.table = table
+        
+        
+    def set_dictionary(self):
+        """
+        Делаем таблицу переменных с учетом их индекса
+        >> {'x': '!x', 'x1': '!x1'}
+        """
+        dictionary = dict()
+        F = self.func
+        F = F.replace(" ", "").replace("+", "").replace("*", "").replace("!", "").replace("(", "").replace(")", "")
+
+        var = ""
+        variables = []
+        numbers = "0123456789"
+
+        for i in range(0, len(F)):
+            char = F[i]
+
+            if char not in numbers and not var:
+                var = char
+
+            elif char not in numbers and var:
+                variables.append(var)
+                var = char
+
+            elif char in numbers and var:
+                var += char
+        else:
+            if var:
+                variables.append(var)
+
+        for var in set(variables):
+            dictionary[var] = f"!{var}"
+
+        self.dictionary = dictionary
+        self.length = len(dictionary)
+        self.variables = sorted(list(dictionary))
+
+
     def run_function(self, data):
         disjunct_values = []
         dictionary = self.variables
         not_dictionary = [self.dictionary[key] for key in dictionary]
-
-        # print(self.variables)
-        # print(not_dictionary)
 
         if self.funcType == "DNF":
             for disjunct in self.items:
@@ -78,46 +136,7 @@ class Function:
             return all(disjunct_values)
 
 
-
-    def set_dictionary(self):
-        """
-        Делаем таблицу переменных с учетом их индекса
-        >> {'x': '!x', 'x1': '!x1'}
-        """
-        dictionary = dict()
-        F = self.func
-        F = F.replace(" ", "").replace("+", "").replace("*", "").replace("!", "")
-
-        var = ""
-        variables = []
-        numbers = "0123456789"
-
-        for i in range(0, len(F)):
-            char = F[i]
-
-            if char not in numbers and not var:
-                var = char
-
-            elif char not in numbers and var:
-                variables.append(var)
-                var = char
-
-            elif char in numbers and var:
-                var += char
-        else:
-            if var:
-                variables.append(var)
-
-        for var in set(variables):
-            dictionary[var] = f"!{var}"
-
-        self.dictionary = dictionary
-        self.length = len(dictionary)
-        self.variables = sorted(list(dictionary))
-
-
-
-    def gluing(self):
+    def gluing(self, resultFuncType='DNF'):
         def gluing_groups(groups):
             process_groups = {}
             group_id = 1
@@ -140,12 +159,12 @@ class Function:
                 for minterm1 in group1:
                     flag = False
 
-                    # print(f'Check minterm {minterm1}')
+
                     for minterm2 in group2:
                         diff_count = sum(
                             1 for a, b in zip(minterm1, minterm2) if a != b
                         )
-                        print(f' Сравниваем {minterm1} & {minterm2} from {key1} & {key2} diff count = {diff_count}')
+
                         if diff_count == 1:
                             was_combined.add("".join(minterm1))
                             was_combined.add("".join(minterm2))
@@ -161,8 +180,6 @@ class Function:
 
                             new_minterm = "".join(new_minterm)
 
-                            print(f' - Получили {new_minterm}')
-
                             if group_id not in process_groups:
                                 process_groups[group_id] = set()
 
@@ -171,33 +188,9 @@ class Function:
 
                             process_groups[group_id].add(new_minterm)
 
-                            # print(process_groups)
-
-                            # if -group_id in was_combined:
-                            #     if new_minterm in process_groups[-group_id]:
-                            #         process_groups[-group_id].remove(new_minterm)
-
-                        else:
-                            pass
-                            # if "".join(minterm2) not in was_combined:
-                            #     if -group_id not in process_groups:
-                            #         process_groups[-group_id] = set()
-
-                            #     process_groups[-group_id].add("".join(minterm2))
-                        print(f' Сравнили {minterm1} & {minterm2} from {key1} & {key2} {"*" if flag else ""} diff count = {diff_count}')
-                    print()
-
-                    # if not flag:
-                    #     cant_combined.add("".join(minterm1))
                     flag = False
                 group_id += 1
-            
-            [print(k, groups[k]) for k in sorted(groups)]
-            print()
-            [print(k, process_groups[k]) for k in sorted(process_groups)]
-            print()
-
-            print('Были изнасилованы', was_combined)
+    
             
 
             for key in groups:
@@ -205,14 +198,15 @@ class Function:
                     if minterm not in was_combined:
                         cant_combined.add(minterm)
 
-            print('Остались', cant_combined)
             return process_groups, cant_combined
 
-        # =================
+
         minterms = []
         for line in self.table:
             values, f = line
-            if f:
+            if f and resultFuncType == 'DNF':
+                minterms.append(values)
+            elif not f and resultFuncType == 'KNF':
                 minterms.append(values)
 
         groups = {minterm.count(1): set() for minterm in minterms}
@@ -224,42 +218,57 @@ class Function:
         result_minterms = set()
 
         new_groups, minterms = gluing_groups(groups)
-        print(minterms)
+
         while new_groups:
             groups = new_groups
 
-            [print(k, groups[k]) for k in sorted(groups)]
-            print()
-
             new_groups, minterms = gluing_groups(groups)
-            print(minterms)
+
             [result_minterms.add(minterm) for minterm in minterms]
         else:
             for key in groups:
                 [result_minterms.add(minterm) for minterm in groups[key] if key > 0]
                 [result_minterms.add(minterm) for minterm in minterms]
 
+        result_minterms = self.check_minterms(result_minterms, resultFuncType=resultFuncType)
+        
         return result_minterms
 
 
+    def check_minterms(self, minterms, resultFuncType = 'DNF'):
+        cover_minterms = {}
+        for line in self.table:
+            values, f = line
+            if f and resultFuncType == "DNF":
+                consitute = ''.join([str(i) for i in values])
+                
+                for minterm in minterms:
+                    flag = True
+                    for a, b in zip(consitute, minterm):
+                        if a != b and b != '-':
+                            flag = False
+                    if flag:
+                        if consitute not in cover_minterms: cover_minterms[consitute] = [minterm]
+                        else: cover_minterms[consitute].append(minterm)
+    
+            elif not f and resultFuncType == 'KNF':
+                consitute = ''.join([str(i) for i in values])
+                
+                for minterm in minterms:
+                    flag = True
+                    for a, b in zip(consitute, minterm):
+                        if a != b and b != '-':
+                            flag = False
+                    if flag:
+                        if consitute not in cover_minterms: cover_minterms[consitute] = [minterm]
+                        else: cover_minterms[consitute].append(minterm)
+        
+        result_minterms = set()
+        for key in cover_minterms:
+            if len(cover_minterms[key]) == 1: result_minterms.add(cover_minterms[key][0])
+        
+        return result_minterms
 
-    def set_items(self):
-        func = self.func
-        items = func.replace(" ", "").split("+")
-        items = list(map(lambda d: d.split("*"), items))
-
-        self.items = items
-
-
-
-    def set_table(self):
-        table = []
-
-        for values in itertools.product([0, 1], repeat=self.length):
-            line = (values, self.run_function(values))
-            table.append(line)
-
-        self.table = table
 
     
 
@@ -277,7 +286,7 @@ class Function:
 
 
 
-    def create_function(self, minterms):
+    def create_function(self, minterms, resultFuncType="DNF"):
         dictionary = self.variables
         items: list[list] = []
 
@@ -296,40 +305,55 @@ class Function:
         raw_items = items
         items = []
 
-        for item in raw_items:
-            items.append("*".join(item))
+        if resultFuncType == 'DNF':
+            for item in raw_items:
+                items.append("*".join(item))
 
-        return " + ".join(items)
+            return " + ".join(items)
+        
+        elif resultFuncType == 'KNF':
+                
+            result = ''
+            for item in raw_items:
+                if len(item) == 1:
+                    items.append(''.join(item))
+                else:
+                    items.append(f'({" + ".join(item)})')
+                    
+            return '*'.join(items)
 
 
 
-    def minimize(self):
-        minterms = self.gluing()
+    def minimize(self, resultFuncType='DNF'):
+        minterms = self.gluing(resultFuncType=resultFuncType)
 
-        self.func = self.create_function(minterms)
+        self.func = self.create_function(minterms, resultFuncType=resultFuncType)
 
 
 # func = '!x*y*z + x*y*!z + x*y*z'
-# func = '!x*y*!z*!t + x*!y*!z*!t + x*!y*z*!t + x*!y*z*t + x*y*!z*!t + x*y*z*t'
-# func =  a b c d  a b c d  a bcd  a b c d  abcd abcd  ab cd.
-# func = '!a*!b*!c*!d + !a*b*c* + !a*b*c*d + a*b*!c*d + a*b*c*d + a*b*c*!d + a*b*c*!d + a*!b'
-# func = "A*!B*!C + A*!B*!D + A*C*!D"
-# func = "!x1*!x2*x3*x4 + !x1*x2*!x3*x4 + !x1*x2*x3*x4 + x1*!x2*!x3*!x4 + x1*!x2*x3*!x4 + x1*!x2*x3*x4 + x1*x2*!x3*!x4 + x1*x2*x3*!x4"
-func = "!x1*!x3*!x4 + x2*!x3*!x4 + x1*x3 + x1*x2"
-func = "!x*!y*!z*!w + !x*y*!z*!w + x*!y*z*!w + x*!y*z*w + x*y*!z*!w + x*y*!z*w + x*y*z*!w + x*y*z*w"
+# func = '(x + !y + z) * !x * (y + z)'
 
+func = '!x * y * z + x * y * !z + x * y * z'
+# func = '!x * !y * z + !x * !y * !z + x * y * !z + x * y * z'
+# func = 'x * y * !z * !q + x * !y * !z * !q + x * y * !z * q + !x * y * !z * q + !x * y * !z * !q + !x * !y * !z * !q'
 funcType = "DNF"
+
+# func = '(X1 + !X4)*(X2 + !X4)*(!X1+!X2+X4)'
+# funcType = "KNF"
+
 
 
 manager = Function(func, funcType)
-manager.set_variables(['x', 'y', 'z', 'w'])
+# manager.set_variables(['x', 'y', 'z', 'w'])
 
-print(manager.variables, "F")
-for line in manager.table:
-    print(line)
+# print(manager.variables, "F")
+# for line in manager.table:
+#     print(line)
 
 # print()
-manager.minimize()
-
+manager.minimize(resultFuncType='KNF')
 print(manager.func)
-
+# print(manager.items)
+# for line in manager.table:
+#     print(line)
+# print(manager.dictionary)
