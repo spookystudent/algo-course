@@ -137,6 +137,7 @@ class Function:
 
 
     def gluing(self, resultFuncType='DNF'):
+        # = function ===========
         def gluing_groups(groups):
             process_groups = {}
             group_id = 1
@@ -154,12 +155,10 @@ class Function:
             for key1, key2 in combinations:
                 if not (key1 >= 0 and key2 >= 0):
                     continue
+
                 group1, group2 = groups[key1], groups[key2]
 
                 for minterm1 in group1:
-                    flag = False
-
-
                     for minterm2 in group2:
                         diff_count = sum(
                             1 for a, b in zip(minterm1, minterm2) if a != b
@@ -176,7 +175,6 @@ class Function:
                                 else:
                                     new_minterm.append("-")
 
-                            flag = True
 
                             new_minterm = "".join(new_minterm)
 
@@ -188,7 +186,7 @@ class Function:
 
                             process_groups[group_id].add(new_minterm)
 
-                    flag = False
+ 
                 group_id += 1
     
             
@@ -199,8 +197,10 @@ class Function:
                         cant_combined.add(minterm)
 
             return process_groups, cant_combined
+        # = end function ========
 
 
+        # Prepare minterms for gluing
         minterms = []
         for line in self.table:
             values, f = line
@@ -211,16 +211,19 @@ class Function:
 
         groups = {minterm.count(1): set() for minterm in minterms}
 
+
+        # Group minterms for gluing
         for minterm in minterms:
             groups[minterm.count(1)].add("".join([str(i) for i in minterm]))
 
-        result_groups = []
-        result_minterms = set()
 
+        # Gluing minterms
+        result_minterms = set()
         new_groups, minterms = gluing_groups(groups)
 
         while new_groups:
             groups = new_groups
+
 
             new_groups, minterms = gluing_groups(groups)
 
@@ -230,7 +233,7 @@ class Function:
                 [result_minterms.add(minterm) for minterm in groups[key] if key > 0]
                 [result_minterms.add(minterm) for minterm in minterms]
 
-        result_minterms = self.check_minterms(result_minterms, resultFuncType=resultFuncType)
+        # result_minterms = self.check_minterms(result_minterms, resultFuncType=resultFuncType)
         
         return result_minterms
 
@@ -312,8 +315,6 @@ class Function:
             return " + ".join(items)
         
         elif resultFuncType == 'KNF':
-                
-            result = ''
             for item in raw_items:
                 if len(item) == 1:
                     items.append(''.join(item))
@@ -330,30 +331,25 @@ class Function:
         self.func = self.create_function(minterms, resultFuncType=resultFuncType)
 
 
-# func = '!x*y*z + x*y*!z + x*y*z'
+func = '!x*y*z + x*y*!z + x*y*z'
 # func = '(x + !y + z) * !x * (y + z)'
 
 func = '!x * y * z + x * y * !z + x * y * z'
 # func = '!x * !y * z + !x * !y * !z + x * y * !z + x * y * z'
-# func = 'x * y * !z * !q + x * !y * !z * !q + x * y * !z * q + !x * y * !z * q + !x * y * !z * !q + !x * !y * !z * !q'
-funcType = "DNF"
+func = 'x * y * !z * !q + x * !y * !z * !q + x * y * !z * q + !x * y * !z * q + !x * y * !z * !q + !x * !y * !z * !q'
+funcType = "KNF"
 
 # func = '(X1 + !X4)*(X2 + !X4)*(!X1+!X2+X4)'
 # funcType = "KNF"
 
 
+func = '(x1 + x2) * (x1 + !x3) * (!x2 + x3)'
 
 manager = Function(func, funcType)
-# manager.set_variables(['x', 'y', 'z', 'w'])
+[print(line) for line in manager.table]
 
-# print(manager.variables, "F")
-# for line in manager.table:
-#     print(line)
+# manager.minimize(resultFuncType='KNF')
+# print(manager.func)
 
-# print()
-manager.minimize(resultFuncType='KNF')
-print(manager.func)
-# print(manager.items)
-# for line in manager.table:
-#     print(line)
-# print(manager.dictionary)
+# manager_2 = Function(manager.func, "KNF")
+# [print(line) for line in manager_2.table]
